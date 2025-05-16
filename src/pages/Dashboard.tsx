@@ -13,6 +13,11 @@ import ImprovementOpportunities from "@/components/dashboard/ImprovementOpportun
 import MentionsAnalysis from "@/components/dashboard/MentionsAnalysis";
 import CitationAnalysis from "@/components/dashboard/CitationAnalysis";
 import CompetitorAnalysis from "@/components/dashboard/CompetitorAnalysis";
+import { useProjectAnalysisResultMutation } from "@/store/services/project";
+import { useEffect } from "react";
+import { toast } from "sonner"
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store/services/domainData";
 
 const Dashboard = () => {
   const location = useLocation();
@@ -22,20 +27,52 @@ const Dashboard = () => {
     selectedCompetitors: ["competitor1.com"],
     queries: []
   };
+  const [projectAnalysisResult, { isLoading: projectAnalysisResultLoading }] = useProjectAnalysisResultMutation();
+  const dispatch = useDispatch();
+  // Get domain data from Redux store
+  const domainData = useSelector((state: RootState) => {
+    return state.domainData?.data || {}
+  });
 
+  const getProjectAnalysisData = async (id: string) => {
+    try {
+      // 2025-05-01
+      // give me current data (Eg : 2025-05-01)
+      // give me month before date (Eg : 2025-04-01)
+      const today = new Date();
+      const currentDate = today.toISOString().slice(0, 10);
+
+      // give me month before date (Eg : 2025-04-01)
+      const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+      const prevMonthDate = prevMonth.toISOString().slice(0, 10);
+
+      const res = await projectAnalysisResult({ project_id: id, start_date: prevMonthDate, end_date: currentDate }).unwrap();
+      console.log("data fetched successfully: ", res)
+      toast.success("Data fetched successfully")
+    } catch (error) {
+      console.error("Error fetching data:", error)
+      toast.error("Failed to fetch  data")
+    }
+
+  }
+  useEffect(() => {
+    if (domainData) {
+      getProjectAnalysisData((domainData as any)?.project_id)
+    }
+  }, [])
   // Sample data for the engine performance chart
   const enginePerformanceData = [
     { name: "Perplexity", value: 85, color: "#3b82f6" },
     { name: "ChatGPT", value: 72, color: "#10b981" },
     { name: "Gemini", value: 68, color: "#ef4444" },
     { name: "Claude", value: 78, color: "#8b5cf6" },
-  ].filter(engine => 
+  ].filter(engine =>
     selectedEngines.includes(engine.name.toLowerCase())
   );
 
   // If no engines were selected or matched, provide default data
-  const engineData = enginePerformanceData.length > 0 
-    ? enginePerformanceData 
+  const engineData = enginePerformanceData.length > 0
+    ? enginePerformanceData
     : [{ name: "Perplexity", value: 85, color: "#3b82f6" }];
 
   // Sample data for the improvement opportunities
@@ -72,9 +109,9 @@ const Dashboard = () => {
       previousPosition: 4,
       importance: 5,
       engineResults: [
-        { engine: "Perplexity", position: 1, url: "https://yourdomain.com/features" ,date: "2025-04-01" },
-        { engine: "ChatGPT", position: 3, url: "https://yourdomain.com/features" ,date: "2025-04-01" },
-        { engine: "Google AI", position: 2, url: "https://yourdomain.com/features" ,date: "2025-04-01"}
+        { engine: "Perplexity", position: 1, url: "https://yourdomain.com/features", date: "2025-04-01" },
+        { engine: "ChatGPT", position: 3, url: "https://yourdomain.com/features", date: "2025-04-01" },
+        { engine: "Google AI", position: 2, url: "https://yourdomain.com/features", date: "2025-04-01" }
       ]
     },
     {
@@ -83,7 +120,7 @@ const Dashboard = () => {
       previousPosition: 8,
       importance: 4,
       engineResults: [
-        { engine: "Perplexity", position: 4, url: "https://yourdomain.com/blog/optimization" , date: "2025-04-02" },
+        { engine: "Perplexity", position: 4, url: "https://yourdomain.com/blog/optimization", date: "2025-04-02" },
         { engine: "ChatGPT", position: 6, url: "https://yourdomain.com/blog/optimization", date: "2025-04-02" }
       ]
     },
@@ -93,8 +130,8 @@ const Dashboard = () => {
       previousPosition: 3,
       importance: 4,
       engineResults: [
-        { engine: "Perplexity", position: 2, url: "https://yourdomain.com/blog/seo" ,date: "2025-04-03" },
-        { engine: "Google AI", position: 4, url: "https://yourdomain.com/blog/seo" ,date: "2025-04-03" }
+        { engine: "Perplexity", position: 2, url: "https://yourdomain.com/blog/seo", date: "2025-04-03" },
+        { engine: "Google AI", position: 4, url: "https://yourdomain.com/blog/seo", date: "2025-04-03" }
       ]
     }
   ];
@@ -180,7 +217,7 @@ const Dashboard = () => {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-6">
                 <h3 className="text-sm text-gray-500 mb-1">Average Domain Ranking</h3>
@@ -192,7 +229,7 @@ const Dashboard = () => {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-6">
                 <h3 className="text-sm text-gray-500 mb-1">AI Engines Analyzed</h3>
@@ -224,15 +261,15 @@ const Dashboard = () => {
               <TabsTrigger value="queries">Citation Analysis</TabsTrigger>
               <TabsTrigger value="competitors">Competitor Analysis</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="overview" className="space-y-6">
               <Card>
                 <CardContent className="p-6">
                   <h2 className="text-xl font-semibold mb-4">AI Search Readiness Score</h2>
-                    <ReadinessScoreChart historicalScores={historicalScores} />
+                  <ReadinessScoreChart historicalScores={historicalScores} />
                 </CardContent>
               </Card>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                   <CardContent className="p-6">
@@ -242,7 +279,7 @@ const Dashboard = () => {
                     </div>
                   </CardContent>
                 </Card>
-                
+
                 <Card>
                   <CardContent className="p-6">
                     <h2 className="text-xl font-semibold mb-4">Top Improvement Opportunities</h2>
@@ -253,20 +290,20 @@ const Dashboard = () => {
                 </Card>
               </div>
             </TabsContent>
-            
+
             <TabsContent value="mentions" className="space-y-6">
               <Card>
                 <CardContent className="p-6">
                   <h2 className="text-xl font-semibold mb-4">Mentions Analysis</h2>
-                  <MentionsAnalysis 
-                  mentions={mentionsData}
-                  totalQueries={5842}
-                  queriesPercentChange={8}
-                />
+                  <MentionsAnalysis
+                    mentions={mentionsData}
+                    totalQueries={5842}
+                    queriesPercentChange={8}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="queries" className="space-y-6">
               <Card>
                 <CardContent className="p-6">
@@ -275,14 +312,14 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="competitors" className="space-y-6">
               <Card>
                 <CardContent className="p-6">
                   <h2 className="text-xl font-semibold mb-4">Competitor Analysis</h2>
-                  <CompetitorAnalysis 
-                    domain={domain} 
-                    competitors={competitorData.filter(c => 
+                  <CompetitorAnalysis
+                    domain={domain}
+                    competitors={competitorData.filter(c =>
                       selectedCompetitors.includes(c.name.toLowerCase())
                     )}
                   />
@@ -303,18 +340,18 @@ const Dashboard = () => {
                   </p>
                 </div>
                 <div className="blur-card h-48 bg-gray-100">
-                  <img 
-                    src="public/lovable-uploads/cd0c2ca6-0f33-49dd-b872-37b42c5829fa.png" 
-                    alt="Recommendations" 
-                    className="w-full h-full object-cover" 
+                  <img
+                    src="public/lovable-uploads/cd0c2ca6-0f33-49dd-b872-37b42c5829fa.png"
+                    alt="Recommendations"
+                    className="w-full h-full object-cover"
                   />
                   <div className="coming-soon-badge flex items-center">
                     <LockIcon className="h-4 w-4 mr-2" /> Premium Feature
                   </div>
                 </div>
                 <div className="p-6 bg-gray-50">
-                {/* <Button className="w-full bg-queryosity-teal hover:bg-queryosity-blue"> */}
-                {/* Upgrade to Premium */}
+                  {/* <Button className="w-full bg-queryosity-teal hover:bg-queryosity-blue"> */}
+                  {/* Upgrade to Premium */}
                   <Link to="/recommend-improvements">
                     <Button className="w-full bg-queryosity-teal hover:bg-queryosity-blue">
                       View Improvements
@@ -335,10 +372,10 @@ const Dashboard = () => {
                   </p>
                 </div>
                 <div className="blur-card h-48 bg-gray-100">
-                  <img 
-                    src="public/lovable-uploads/3b4266fe-664d-4888-9760-5f6fda3b9516.png" 
-                    alt="Implementation" 
-                    className="w-full h-full object-cover" 
+                  <img
+                    src="public/lovable-uploads/3b4266fe-664d-4888-9760-5f6fda3b9516.png"
+                    alt="Implementation"
+                    className="w-full h-full object-cover"
                   />
                   <div className="coming-soon-badge flex items-center">
                     <LockIcon className="h-4 w-4 mr-2" /> Coming Soon
@@ -363,10 +400,10 @@ const Dashboard = () => {
                   </p>
                 </div>
                 <div className="blur-card h-48 bg-gray-100">
-                  <img 
-                    src="public/lovable-uploads/82826895-55a7-4126-b7a5-80d28d1a0f98.png" 
-                    alt="Impact Measurement" 
-                    className="w-full h-full object-cover" 
+                  <img
+                    src="public/lovable-uploads/82826895-55a7-4126-b7a5-80d28d1a0f98.png"
+                    alt="Impact Measurement"
+                    className="w-full h-full object-cover"
                   />
                   <div className="coming-soon-badge flex items-center">
                     <LockIcon className="h-4 w-4 mr-2" /> Coming Soon

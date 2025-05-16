@@ -7,7 +7,7 @@ import Footer from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { RootState, setDomainData } from "@/store/services/domainData";
-import { useUpdateDomainEnginesDataMutation } from "@/store/services/project";
+import { useUpdateDomainEnginesDataMutation, useUpdatedomainProcessMutation } from "@/store/services/project";
 const searchEngines = [
   {
     id: "perplexity",
@@ -37,6 +37,7 @@ const SearchEngineSelection = () => {
   const { domain } = location.state || { domain: "example.com" };
   const [selectedEngines, setSelectedEngines] = useState<string[]>(["perplexity"]);
   const [updateDomainEnginesData, { isLoading }] = useUpdateDomainEnginesDataMutation();
+  const [updatedomainProcess, { isLoading: progressLoading }] = useUpdatedomainProcessMutation();
   const dispatch = useDispatch();
   // Get domain data from Redux store
   const domainData = useSelector((state: RootState) => {
@@ -67,6 +68,8 @@ const SearchEngineSelection = () => {
           .unwrap();
         console.log("Response from API:", res);
         dispatch(setDomainData(res))
+        const processRes = await updatedomainProcess({ project_id: (domainData as any)?.project_id ?? "" });
+        console.log("Process response:", processRes);
         navigate("/analyze/competitors", {
           state: { domain, selectedEngines }
         });

@@ -1,9 +1,9 @@
-
-import Hero from "@/components/Hero";
-import ProcessSteps from "@/components/ProcessSteps";
-import DashboardPreview from "@/components/DashboardPreview";
-import LockedFeatures from "@/components/LockedFeatures";
-import Footer from "@/components/Footer";
+"use client"
+import Hero from "@/components/Hero"
+import ProcessSteps from "@/components/ProcessSteps"
+import DashboardPreview from "@/components/DashboardPreview"
+import LockedFeatures from "@/components/LockedFeatures"
+import Footer from "@/components/Footer"
 
 const Index = () => {
   return (
@@ -16,7 +16,7 @@ const Index = () => {
       </main>
       <Footer />
     </div>
-  );
-};
+  )
+}
 
-export default Index;
+export default Index

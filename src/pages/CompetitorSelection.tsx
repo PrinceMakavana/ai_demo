@@ -1,15 +1,25 @@
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { PlusCircle, Search, X } from "lucide-react";
-import Footer from "@/components/Footer";
-import { Card, CardContent } from "@/components/ui/card";
-import { useSuggestDoaminCompetitorsMutation } from "@/store/services/project";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store/services/domainData";
-import { toast } from "sonner";
+"use client"
+
+import { useEffect, useState } from "react"
+import { useLocation, useNavigate } from "react-router-dom"
+import { useDispatch, useSelector } from "react-redux"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
+import { PlusCircle, Search, X } from "lucide-react"
+import Footer from "@/components/Footer"
+import { Card, CardContent } from "@/components/ui/card"
+import { useSuggestDoaminCompetitorsMutation, useUpdateCompititorsDataMutation } from "@/store/services/project"
+import type { RootState } from "@/store/services/domainData"
+import { setDomainData } from "@/store/services/domainData"
+import { toast } from "sonner"
+
+// Interface for competitor data
+interface Competitor {
+  id: string
+  name: string
+  selected: boolean
+}
 
 // Mock suggested competitors based on domain
 const getStaticSuggestedCompetitors = (domain: string) => {
@@ -17,92 +27,127 @@ const getStaticSuggestedCompetitors = (domain: string) => {
     { id: "comp1", name: "competitor1.com", selected: true },
     { id: "comp2", name: "competitor2.com", selected: true },
     { id: "comp3", name: "competitorsite.com", selected: false },
-    { id: "comp4", name: "industryexample.com", selected: false }
-  ];
+    { id: "comp4", name: "industryexample.com", selected: false },
+  ]
 
-  return defaultCompetitors;
-};
+  return defaultCompetitors
+}
 
 const CompetitorSelection = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { domain, selectedEngines } = location.state || { domain: "example.com", selectedEngines: ["perplexity"] };
-  const [getSuggestedCompetitors, { isLoading: domainDataLoading, isError: hasError }] = useSuggestDoaminCompetitorsMutation();
+  const location = useLocation()
+  const navigate = useNavigate()
+  const dispatch = useDispatch()
+  const { domain, selectedEngines } = location.state || { domain: "example.com", selectedEngines: ["perplexity"] }
+
+  const [getSuggestedCompetitors, { isLoading: suggestingCompetitors }] = useSuggestDoaminCompetitorsMutation()
+  const [updateCompetitors, { isLoading: updatingCompetitors }] = useUpdateCompititorsDataMutation()
+
   // Get domain data from Redux store
-
   const domainData = useSelector((state: RootState) => {
-    return (state.domainData?.data as any) || {};
-  });
+    return (state.domainData?.data as any) || {}
+  })
 
-  const retriveSuggestedCompetitors = async (project_id: string) => {
-    console.log("Retrieving suggested competitors for project ID:", project_id);
-    if (domain) {
+  const [competitors, setCompetitors] = useState<Competitor[]>(getStaticSuggestedCompetitors(domain))
+  const [searchQuery, setSearchQuery] = useState("")
+  const [newCompetitor, setNewCompetitor] = useState("")
+
+  const retrieveSuggestedCompetitors = async (project_id: string) => {
+    console.log("Retrieving suggested competitors for project ID:", project_id)
+    if (project_id) {
       try {
-        const data = await getSuggestedCompetitors({ project_id: project_id })
-          .unwrap();
-        console.log("Competitors data fetched successfully: ", data);
-        // Set domain data to Redux store
-        // dispatch(setDomainData(data));
+        const data = await getSuggestedCompetitors({ project_id }).unwrap()
+        console.log("Competitors data fetched successfully: ", data)
+
+        if (data && data.competitors && Array.isArray(data.competitors)) {
+          const formattedCompetitors = data.competitors.map((comp: string, index: number) => ({
+            id: `comp${index + 1}`,
+            name: comp,
+            selected: true,
+          }))
+          setCompetitors(formattedCompetitors)
+          toast.success("Suggested competitors loaded successfully")
+        }
       } catch (error) {
-        console.error("Error fetching competitors data:", error);
-        toast.error("Failed to fetch competitors data");
+        console.error("Error fetching competitors data:", error)
+        toast.error("Failed to fetch competitors data")
       }
     } else {
-      toast.error("Please enter a domain to analyze");
+      toast.error("Project ID not found")
     }
-  };
+  }
+
   useEffect(() => {
-    console.log("/analyze/competitors Domain data from Redux store: ", domainData);
-    if (domainData?.competitors != undefined && domainData?.competitors != null) {
-      console.log("Competitors data from API: ", domainData?.competitors);
+    console.log("/analyze/competitors Domain data from Redux store: ", domainData)
 
-      // const competitors = domainData?.competitors.map((comp: any) => ({
-      //   id: comp.id,
-      //   name: comp.name,
-      //   selected: true
-      // }));
-      // setCompetitors(competitors);
-
-    } else {
-      console.log("Competitors data not found in API response");
-      retriveSuggestedCompetitors(domainData.project_id);
+    // Check if we already have competitors data
+    if (domainData?.competitors && Array.isArray(domainData.competitors) && domainData.competitors.length > 0) {
+      console.log("Using competitors data from Redux store:", domainData.competitors)
+      const formattedCompetitors = domainData.competitors.map((comp: string, index: number) => ({
+        id: `comp${index + 1}`,
+        name: comp,
+        selected: true,
+      }))
+      setCompetitors(formattedCompetitors)
+    } else if (domainData?.project_id) {
+      console.log("No competitors found in Redux store, fetching from API")
+      retrieveSuggestedCompetitors(domainData.project_id)
     }
-  }, [domainData]);
-
-  const [competitors, setCompetitors] = useState(getStaticSuggestedCompetitors(domain));
-  const [searchQuery, setSearchQuery] = useState("");
-  const [newCompetitor, setNewCompetitor] = useState("");
+  }, [domainData])
 
   const handleCompetitorToggle = (id: string) => {
-    setCompetitors(prev =>
-      prev.map(comp =>
-        comp.id === id ? { ...comp, selected: !comp.selected } : comp
-      )
-    );
-  };
+    setCompetitors((prev) => prev.map((comp) => (comp.id === id ? { ...comp, selected: !comp.selected } : comp)))
+  }
 
   const handleAddCompetitor = () => {
-    if (newCompetitor && !competitors.some(c => c.name === newCompetitor)) {
-      setCompetitors([
-        ...competitors,
-        { id: `comp${competitors.length + 1}`, name: newCompetitor, selected: true }
-      ]);
-      setNewCompetitor("");
+    if (newCompetitor && !competitors.some((c) => c.name === newCompetitor)) {
+      setCompetitors([...competitors, { id: `comp${competitors.length + 1}`, name: newCompetitor, selected: true }])
+      setNewCompetitor("")
     }
-  };
+  }
 
-  const handleContinue = () => {
-    const selectedCompetitors = competitors.filter(c => c.selected).map(c => c.name);
-    console.log("selectedCompetitors  == ", selectedCompetitors);
-    
-    // navigate("/analyze/queries", {
-    //   state: { domain, selectedEngines, selectedCompetitors }
-    // });
-  };
+  const handleContinue = async () => {
+    const selectedCompetitors = competitors.filter((c) => c.selected).map((c) => c.name)
+    console.log("selectedCompetitors == ", selectedCompetitors)
 
-  const filteredCompetitors = competitors.filter(comp =>
-    comp.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    if (selectedCompetitors.length === 0) {
+      toast.error("Please select at least one competitor")
+      return
+    }
+
+    if (!domainData.project_id) {
+      toast.error("Project ID not found")
+      return
+    }
+
+    try {
+      const response = await updateCompetitors({
+        project_id: domainData.project_id,
+        competitors: selectedCompetitors,
+      }).unwrap()
+
+      console.log("Competitors updated successfully:", response)
+
+      // Update the Redux store with the new data
+      dispatch(
+        setDomainData({
+          ...domainData,
+          competitors: selectedCompetitors,
+        }),
+      )
+
+      toast.success("Competitors updated successfully")
+
+      // Navigate to the next page
+      navigate("/analyze/queries", {
+        state: { domain, selectedEngines, selectedCompetitors },
+      })
+    } catch (error) {
+      console.error("Error updating competitors:", error)
+      toast.error("Failed to update competitors")
+    }
+  }
+
+  const filteredCompetitors = competitors.filter((comp) => comp.name.toLowerCase().includes(searchQuery.toLowerCase()))
 
   return (
     <div className="flex flex-col min-h-full">
@@ -153,47 +198,66 @@ const CompetitorSelection = () => {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  {filteredCompetitors.map((comp) => (
-                    <div
-                      key={comp.id}
-                      className={`border rounded-lg p-4 transition-colors flex items-center justify-between ${comp.selected
-                        ? 'border-queryosity-blue bg-blue-50'
-                        : 'border-gray-200'
-                        }`}
-                    >
-                      <div className="flex items-center">
-                        <Checkbox
-                          id={comp.id}
-                          checked={comp.selected}
-                          onCheckedChange={() => handleCompetitorToggle(comp.id)}
-                          className="mr-3"
-                        />
-                        <label htmlFor={comp.id} className="text-lg font-medium cursor-pointer">
-                          {comp.name}
-                        </label>
+                {suggestingCompetitors ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-queryosity-blue mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading suggested competitors...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredCompetitors.length > 0 ? (
+                      filteredCompetitors.map((comp) => (
+                        <div
+                          key={comp.id}
+                          className={`border rounded-lg p-4 transition-colors flex items-center justify-between ${
+                            comp.selected
+                              ? "border-queryosity-blue bg-blue-50"
+                              : "border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <div className="flex items-center">
+                            <Checkbox
+                              id={comp.id}
+                              checked={comp.selected}
+                              onCheckedChange={() => handleCompetitorToggle(comp.id)}
+                              className="mr-3"
+                            />
+                            <label htmlFor={comp.id} className="text-lg font-medium cursor-pointer">
+                              {comp.name}
+                            </label>
+                          </div>
+                          <X
+                            className="h-5 w-5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                            onClick={() => setCompetitors(competitors.filter((c) => c.id !== comp.id))}
+                          />
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 border rounded-lg">
+                        <p className="text-gray-500">No competitors found. Try adding some.</p>
                       </div>
-                      <X
-                        className="h-5 w-5 text-gray-400 hover:text-gray-600 cursor-pointer"
-                        onClick={() => setCompetitors(competitors.filter(c => c.id !== comp.id))}
-                      />
-                    </div>
-                  ))}
-                </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-between">
-                <Button
-                  onClick={() => navigate("/analyze/search-engines", { state: { domain } })}
-                  variant="outline"
-                >
+                <Button onClick={() => navigate("/analyze/search-engines", { state: { domain } })} variant="outline">
                   Back
                 </Button>
                 <Button
                   onClick={handleContinue}
                   className="bg-queryosity-blue hover:bg-queryosity-dark text-white px-8"
+                  disabled={updatingCompetitors || competitors.filter((c) => c.selected).length === 0}
                 >
-                  Continue
+                  {updatingCompetitors ? (
+                    <>
+                      <span className="animate-spin mr-2">⟳</span>
+                      Updating...
+                    </>
+                  ) : (
+                    "Continue"
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -202,7 +266,7 @@ const CompetitorSelection = () => {
       </main>
       <Footer />
     </div>
-  );
-};
+  )
+}
 
-export default CompetitorSelection;
+export default CompetitorSelection
